@@ -1,0 +1,56 @@
+@page "/members/print/{Id:int}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Directory.Web.Helpers
+@inject IMemberService MemberService
+@inject IJSRuntime JS
+
+<PageTitle>Print Member - CGBC Directory</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3 d-print-none">
+    <h3>Member Details</h3>
+    <div>
+        <button class="btn btn-primary me-2" @onclick="ExportPdf">
+            <i class="bi bi-file-pdf"></i> Export PDF
+        </button>
+        <button class="btn btn-secondary me-2" @onclick="PrintPage">
+            <i class="bi bi-printer"></i> Print
+        </button>
+        <a href="/directory" class="btn btn-outline-secondary">Back to Directory</a>
+    </div>
+</div>
+
+@if (detail == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <MemberDetailPanel Detail="detail" />
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private MemberDetailDto? detail;
+
+    protected override async Task OnInitializedAsync()
+    {
+        detail = await MemberService.GetMemberDetailAsync(Id);
+    }
+
+    private async Task PrintPage()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
+
+    private async Task ExportPdf()
+    {
+        if (detail == null) return;
+
+        var pdfBytes = PdfGenerator.GenerateMemberPdf(detail);
+        var fileName = $"Member_{detail.DisplayName.Replace(" ", "_")}.pdf";
+        var base64 = Convert.ToBase64String(pdfBytes);
+        await JS.InvokeVoidAsync("downloadFile", fileName, base64);
+    }
+}

@@ -1,0 +1,22 @@
+@if (Notes != null && Notes.Count > 0)
+{
+    <div class="mt-2">
+        @foreach (var note in Notes)
+        {
+            <div class="border-start border-3 ps-2 mb-2">
+                <small class="text-muted">
+                    @note.CreatedDate.ToShortDateString()
+                    @if (!string.IsNullOrEmpty(note.UserName))
+                    {
+                        <text> - @note.UserName</text>
+                    }
+                </small>
+                <p class="mb-0">@note.NoteText</p>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public List<MemberNoteDto>? Notes { get; set; }
+}

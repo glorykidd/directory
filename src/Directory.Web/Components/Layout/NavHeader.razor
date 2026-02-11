@@ -1,0 +1,67 @@
+@using Directory.Infrastructure.Identity
+@using Microsoft.AspNetCore.Identity
+@inject NavigationManager Navigation
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<nav class="navbar navbar-expand-md navbar-dark bg-primary">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/directory">CGBC Directory</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navHeader">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navHeader">
+            <ul class="navbar-nav ms-auto align-items-center">
+                <AuthorizeView>
+                    <Authorized>
+                        <li class="nav-item">
+                            <span class="nav-link text-light">Welcome, @displayName</span>
+                        </li>
+                        <AuthorizeView Roles="SuperAdmin">
+                            <Authorized Context="adminContext">
+                                <li class="nav-item">
+                                    <a class="nav-link" href="/admin/users">Administration</a>
+                                </li>
+                            </Authorized>
+                        </AuthorizeView>
+                        <li class="nav-item">
+                            <button class="btn btn-outline-light btn-sm ms-2" @onclick="ShowChangePassword">
+                                Change Password
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <form method="post" action="/account/logout">
+                                <AntiforgeryToken />
+                                <button type="submit" class="btn btn-outline-light btn-sm ms-2">Logout</button>
+                            </form>
+                        </li>
+                    </Authorized>
+                </AuthorizeView>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<ChangePasswordModal @ref="changePasswordModal" />
+
+@code {
+    private string displayName = string.Empty;
+    private ChangePasswordModal changePasswordModal = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var appUser = await UserManager.GetUserAsync(user);
+            displayName = appUser?.DisplayName ?? user.Identity.Name ?? string.Empty;
+        }
+    }
+
+    private async Task ShowChangePassword()
+    {
+        await changePasswordModal.ShowAsync();
+    }
+}

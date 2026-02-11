@@ -1,0 +1,306 @@
+@page "/members/new"
+@page "/members/edit/{Id:int}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Directory.Infrastructure.Identity
+@using Directory.Domain.Enums
+@using Microsoft.AspNetCore.Identity
+@inject IMemberService MemberService
+@inject ILookupService LookupService
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>@(Id.HasValue ? "Edit Member" : "New Member") - CGBC Directory</PageTitle>
+
+<h3>@(Id.HasValue ? "Edit Member" : "New Member")</h3>
+
+@if (!authorized)
+{
+    <div class="alert alert-danger">You are not authorized to edit this member.</div>
+    return;
+}
+
+@if (model == null)
+{
+    <p>Loading...</p>
+    return;
+}
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success">@successMessage</div>
+}
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+<EditForm Model="model" OnValidSubmit="HandleSave">
+    <DataAnnotationsValidator />
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header">Personal Information</div>
+                <div class="card-body">
+                    <div class="row mb-2">
+                        <div class="col-md-4">
+                            <label class="form-label">Salutation</label>
+                            <InputSelect class="form-select" @bind-Value="model.SalutationId">
+                                @foreach (var s in salutations)
+                                {
+                                    <option value="@s.Id">@s.Name</option>
+                                }
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">First Name</label>
+                            <InputText class="form-control" @bind-Value="model.FirstName" />
+                            <ValidationMessage For="() => model.FirstName" />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-4">
+                            <label class="form-label">Middle Name</label>
+                            <InputText class="form-control" @bind-Value="model.MiddleName" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Last Name</label>
+                            <InputText class="form-control" @bind-Value="model.LastName" />
+                            <ValidationMessage For="() => model.LastName" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Suffix</label>
+                            <InputText class="form-control" @bind-Value="model.Suffix" />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Gender</label>
+                            <InputSelect class="form-select" @bind-Value="model.Gender">
+                                <option value="@Gender.Male">Male</option>
+                                <option value="@Gender.Female">Female</option>
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Marital Status</label>
+                            <InputSelect class="form-select" @bind-Value="model.MaritalStatusId">
+                                @foreach (var s in maritalStatuses)
+                                {
+                                    <option value="@s.Id">@s.Name</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Date of Birth</label>
+                            <InputDate class="form-control" @bind-Value="model.DateOfBirth" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Marriage Date</label>
+                            <InputDate class="form-control" @bind-Value="model.MarriageDate" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">Contact Information</div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <label class="form-label">Address Line 1</label>
+                        <InputText class="form-control" @bind-Value="model.Address1" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Address Line 2</label>
+                        <InputText class="form-control" @bind-Value="model.Address2" />
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-5">
+                            <label class="form-label">City</label>
+                            <InputText class="form-control" @bind-Value="model.City" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">State</label>
+                            <InputSelect class="form-select" @bind-Value="model.StateId">
+                                @foreach (var s in states)
+                                {
+                                    <option value="@s.Id">@s.Name</option>
+                                }
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Zip</label>
+                            <InputText class="form-control" @bind-Value="model.ZipCode" />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Cell Phone</label>
+                            <InputText class="form-control" @bind-Value="model.CellPhone" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Home Phone</label>
+                            <InputText class="form-control" @bind-Value="model.HomePhone" />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <InputText class="form-control" @bind-Value="model.Email1" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email 2</label>
+                            <InputText class="form-control" @bind-Value="model.Email2" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header">Related Members</div>
+                <div class="card-body">
+                    <RelatedMembersGrid
+                        RelatedMembers="model.RelatedMembers"
+                        AllMembers="allMembersLookup"
+                        RelationshipTypes="relationshipTypes"
+                        CurrentMemberId="model.Id"
+                        OnChanged="StateHasChanged" />
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">Notes</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Add Note</label>
+                        <InputTextArea class="form-control" @bind-Value="newNote" rows="3" />
+                    </div>
+                    <MemberNotesDisplay Notes="model.Notes" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mb-4">
+        <button type="submit" class="btn btn-primary" disabled="@saving">
+            @(saving ? "Saving..." : "Save")
+        </button>
+        <a href="/directory" class="btn btn-secondary">Back to Directory</a>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private MemberDto? model;
+    private string newNote = string.Empty;
+    private string? successMessage;
+    private string? errorMessage;
+    private bool saving;
+    private bool authorized = true;
+
+    private List<LookupDto> salutations = new();
+    private List<LookupDto> maritalStatuses = new();
+    private List<LookupDto> states = new();
+    private List<LookupDto> relationshipTypes = new();
+    private List<LookupDto> allMembersLookup = new();
+
+    private bool isAdmin;
+    private int? currentUserMemberId;
+    private string currentUserId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        isAdmin = user.IsInRole("Admin") || user.IsInRole("SuperAdmin");
+
+        var appUser = await UserManager.GetUserAsync(user);
+        currentUserMemberId = appUser?.MemberId;
+        currentUserId = appUser?.Id ?? string.Empty;
+
+        // Load lookups
+        salutations = await LookupService.GetSalutationsAsync();
+        maritalStatuses = await LookupService.GetMaritalStatusesAsync();
+        states = await LookupService.GetStatesAsync();
+        relationshipTypes = await LookupService.GetRelationshipTypesAsync();
+        allMembersLookup = await LookupService.GetAllMembersLookupAsync();
+
+        if (Id.HasValue)
+        {
+            // Check authorization
+            if (!isAdmin && (!currentUserMemberId.HasValue || currentUserMemberId.Value != Id.Value))
+            {
+                authorized = false;
+                return;
+            }
+
+            model = await MemberService.GetMemberForEditAsync(Id.Value);
+            if (model == null)
+            {
+                Navigation.NavigateTo("/directory");
+                return;
+            }
+        }
+        else
+        {
+            if (!isAdmin)
+            {
+                authorized = false;
+                return;
+            }
+
+            model = new MemberDto
+            {
+                SalutationId = salutations.FirstOrDefault()?.Id ?? 1,
+                MaritalStatusId = maritalStatuses.FirstOrDefault()?.Id ?? 1,
+                StateId = states.FirstOrDefault(s => s.Name == "North Carolina")?.Id
+                          ?? states.FirstOrDefault()?.Id ?? 1
+            };
+        }
+    }
+
+    private async Task HandleSave()
+    {
+        if (model == null) return;
+        saving = true;
+        successMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            if (model.Id == 0)
+            {
+                var newId = await MemberService.CreateAsync(model, newNote, currentUserId);
+                model.Id = newId;
+                successMessage = "Member created successfully.";
+                newNote = string.Empty;
+                Navigation.NavigateTo($"/members/edit/{newId}", replace: true);
+            }
+            else
+            {
+                await MemberService.UpdateAsync(model, newNote, currentUserId);
+                successMessage = "Member updated successfully.";
+                newNote = string.Empty;
+                // Refresh the model to show updated notes
+                model = await MemberService.GetMemberForEditAsync(model.Id);
+            }
+
+            // Refresh the members lookup in case name changed
+            allMembersLookup = await LookupService.GetAllMembersLookupAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving member: {ex.Message}";
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+}

@@ -1,0 +1,8 @@
+@if (!string.IsNullOrEmpty(Number))
+{
+    <span>@FormatHelpers.FormatPhone(Number)</span>
+}
+
+@code {
+    [Parameter] public string? Number { get; set; }
+}

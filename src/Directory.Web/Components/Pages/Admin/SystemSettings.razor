@@ -1,0 +1,102 @@
+@page "/admin/settings"
+@attribute [Authorize(Roles = "SuperAdmin")]
+@rendermode InteractiveServer
+@inject ISystemSettingService SettingService
+
+<PageTitle>System Settings - CGBC Directory</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>System Settings</h3>
+    <a href="/admin/users" class="btn btn-secondary">Back to Admin</a>
+</div>
+
+@if (model == null)
+{
+    <p>Loading...</p>
+    return;
+}
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert @(isError ? "alert-danger" : "alert-success")">@message</div>
+}
+
+<div class="card">
+    <div class="card-header">SMTP Configuration</div>
+    <div class="card-body">
+        <EditForm Model="model" OnValidSubmit="HandleSave">
+            <div class="row mb-3">
+                <div class="col-md-8">
+                    <label class="form-label">Mail Server</label>
+                    <InputText class="form-control" @bind-Value="model.MailServer" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Port</label>
+                    <InputNumber class="form-control" @bind-Value="model.ServerPort" />
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">SMTP User</label>
+                    <InputText class="form-control" @bind-Value="model.SmtpUser" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">SMTP Password</label>
+                    <InputText type="password" class="form-control" @bind-Value="model.SmtpPassword" />
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">From Email</label>
+                    <InputText class="form-control" @bind-Value="model.FromEmail" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">From Name</label>
+                    <InputText class="form-control" @bind-Value="model.FromUsername" />
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="form-check">
+                        <InputCheckbox class="form-check-input" @bind-Value="model.RequireAuth" />
+                        <label class="form-check-label">Require Authentication</label>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-check">
+                        <InputCheckbox class="form-check-input" @bind-Value="model.RequireSsl" />
+                        <label class="form-check-label">Require SSL</label>
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Save Settings</button>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private SystemSettingDto? model;
+    private string? message;
+    private bool isError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        model = await SettingService.GetSettingsAsync();
+    }
+
+    private async Task HandleSave()
+    {
+        if (model == null) return;
+        try
+        {
+            await SettingService.UpdateSettingsAsync(model);
+            message = "Settings saved.";
+            isError = false;
+        }
+        catch (Exception ex)
+        {
+            message = ex.Message;
+            isError = true;
+        }
+    }
+}

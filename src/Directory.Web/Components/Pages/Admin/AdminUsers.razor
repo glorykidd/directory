@@ -1,0 +1,276 @@
+@page "/admin/users"
+@attribute [Authorize(Roles = "SuperAdmin")]
+@rendermode InteractiveServer
+@inject IUserService UserService
+@inject ILookupService LookupService
+@inject IEmailService EmailService
+
+<PageTitle>Admin Users - CGBC Directory</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>User Administration</h3>
+    <div>
+        <a href="/admin/settings" class="btn btn-outline-secondary me-2">System Settings</a>
+        <a href="/admin/errors" class="btn btn-outline-secondary me-2">System Errors</a>
+        <a href="/directory" class="btn btn-secondary">Back to Directory</a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible">
+        @message
+        <button type="button" class="btn-close" @onclick='() => message = null'></button>
+    </div>
+}
+
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between">
+        <span>Users</span>
+        <button class="btn btn-primary btn-sm" @onclick="ShowAddUser">
+            <i class="bi bi-plus-circle"></i> Add User
+        </button>
+    </div>
+    <div class="card-body">
+        @if (users == null)
+        {
+            <p>Loading...</p>
+        }
+        else
+        {
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Display Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Linked Member</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in users)
+                    {
+                        <tr>
+                            @if (editingUserId == user.Id)
+                            {
+                                <td><input class="form-control form-control-sm" @bind="editModel.DisplayName" /></td>
+                                <td><input class="form-control form-control-sm" @bind="editModel.Email" /></td>
+                                <td>
+                                    <select class="form-select form-select-sm" @bind="editModel.Role">
+                                        <option value="User">User</option>
+                                        <option value="Admin">Admin</option>
+                                        <option value="SuperAdmin">SuperAdmin</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm" @bind="editModel.MemberId">
+                                        <option value="">-- None --</option>
+                                        @foreach (var m in membersList)
+                                        {
+                                            <option value="@m.Id">@m.Name</option>
+                                        }
+                                    </select>
+                                </td>
+                                <td>
+                                    <button class="btn btn-success btn-sm me-1" @onclick="SaveEdit">Save</button>
+                                    <button class="btn btn-secondary btn-sm" @onclick="CancelEdit">Cancel</button>
+                                </td>
+                            }
+                            else
+                            {
+                                <td>@user.DisplayName</td>
+                                <td>@user.Email</td>
+                                <td>@user.Role</td>
+                                <td>@(user.MemberName ?? "—")</td>
+                                <td>
+                                    <button class="btn btn-outline-primary btn-sm me-1" @onclick="() => StartEdit(user)">Edit</button>
+                                    <button class="btn btn-outline-warning btn-sm me-1" @onclick="() => ResetPassword(user)">Reset Password</button>
+                                    <button class="btn btn-outline-danger btn-sm" @onclick="() => ConfirmDelete(user)">Delete</button>
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+<ConfirmModal @ref="confirmDialog" Title="Delete User" Message="@deleteMessage" ConfirmText="Delete"
+              OnConfirmed="DeleteConfirmed" />
+
+<Modal @ref="addUserModal" Title="Add User">
+    <BodyTemplate>
+        <div class="mb-3">
+            <label class="form-label">Display Name</label>
+            <input class="form-control" @bind="newUser.DisplayName" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input class="form-control" @bind="newUser.Email" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Password</label>
+            <input type="password" class="form-control" @bind="newUserPassword" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Role</label>
+            <select class="form-select" @bind="newUser.Role">
+                <option value="User">User</option>
+                <option value="Admin">Admin</option>
+                <option value="SuperAdmin">SuperAdmin</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Link to Member</label>
+            <select class="form-select" @bind="newUser.MemberId">
+                <option value="">-- None --</option>
+                @foreach (var m in membersList)
+                {
+                    <option value="@m.Id">@m.Name</option>
+                }
+            </select>
+        </div>
+    </BodyTemplate>
+    <FooterTemplate>
+        <Button Color="ButtonColor.Secondary" @onclick="CloseAddUser">Cancel</Button>
+        <Button Color="ButtonColor.Primary" @onclick="CreateUser">Create</Button>
+    </FooterTemplate>
+</Modal>
+
+@code {
+    private List<UserDto>? users;
+    private List<LookupDto> membersList = new();
+    private string? message;
+    private bool isError;
+
+    private string? editingUserId;
+    private UserDto editModel = new();
+    private string? deleteUserId;
+    private string deleteMessage = string.Empty;
+
+    private UserDto newUser = new() { Role = "User" };
+    private string newUserPassword = string.Empty;
+    private Modal addUserModal = default!;
+    private ConfirmModal confirmDialog = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        users = await UserService.GetAllUsersAsync();
+        membersList = await LookupService.GetAllMembersLookupAsync();
+    }
+
+    private void StartEdit(UserDto user)
+    {
+        editingUserId = user.Id;
+        editModel = new UserDto
+        {
+            Id = user.Id,
+            DisplayName = user.DisplayName,
+            Email = user.Email,
+            Role = user.Role,
+            MemberId = user.MemberId
+        };
+    }
+
+    private void CancelEdit()
+    {
+        editingUserId = null;
+    }
+
+    private async Task SaveEdit()
+    {
+        var (success, error) = await UserService.UpdateAsync(editModel);
+        if (success)
+        {
+            message = "User updated.";
+            isError = false;
+            editingUserId = null;
+            users = await UserService.GetAllUsersAsync();
+        }
+        else
+        {
+            message = error;
+            isError = true;
+        }
+    }
+
+    private async Task ResetPassword(UserDto user)
+    {
+        var (success, tempPassword, error) = await UserService.ResetPasswordAsync(user.Id);
+        if (success)
+        {
+            try
+            {
+                await EmailService.SendPasswordResetEmailAsync(user.Email, tempPassword);
+                message = $"Password reset email sent to {user.Email}.";
+                isError = false;
+            }
+            catch (Exception ex)
+            {
+                message = $"Password reset but email failed: {ex.Message}. Temp password: {tempPassword}";
+                isError = true;
+            }
+        }
+        else
+        {
+            message = error;
+            isError = true;
+        }
+    }
+
+    private async Task ConfirmDelete(UserDto user)
+    {
+        deleteUserId = user.Id;
+        deleteMessage = $"Are you sure you want to delete user '{user.DisplayName}'?";
+        await confirmDialog.ShowAsync();
+    }
+
+    private async Task DeleteConfirmed()
+    {
+        if (deleteUserId == null) return;
+        var (success, error) = await UserService.DeleteAsync(deleteUserId);
+        if (success)
+        {
+            message = "User deleted.";
+            isError = false;
+            users = await UserService.GetAllUsersAsync();
+        }
+        else
+        {
+            message = error;
+            isError = true;
+        }
+        deleteUserId = null;
+    }
+
+    private async Task ShowAddUser()
+    {
+        newUser = new UserDto { Role = "User" };
+        newUserPassword = string.Empty;
+        await addUserModal.ShowAsync();
+    }
+
+    private async Task CloseAddUser()
+    {
+        await addUserModal.HideAsync();
+    }
+
+    private async Task CreateUser()
+    {
+        var (success, error) = await UserService.CreateAsync(newUser, newUserPassword);
+        if (success)
+        {
+            message = "User created.";
+            isError = false;
+            users = await UserService.GetAllUsersAsync();
+            await addUserModal.HideAsync();
+        }
+        else
+        {
+            message = error;
+            isError = true;
+        }
+    }
+}

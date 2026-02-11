@@ -1,0 +1,262 @@
+@page "/directory"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Directory.Infrastructure.Identity
+@using Microsoft.AspNetCore.Identity
+@inject IMemberService MemberService
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Member Directory - CGBC Directory</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Member Directory</h3>
+    <AuthorizeView Roles="Admin,SuperAdmin">
+        <Authorized>
+            <Button Color="ButtonColor.Primary" @onclick="NewMember">
+                <i class="bi bi-plus-circle"></i> New Member
+            </Button>
+        </Authorized>
+    </AuthorizeView>
+</div>
+
+<div class="mb-3">
+    <div class="row g-2">
+        <div class="col-md-4">
+            <input type="text" class="form-control" placeholder="Search by last name..."
+                   @bind="lastNameFilter" @bind:event="oninput" @onkeyup="OnFilterChanged" />
+        </div>
+        <div class="col-md-4">
+            <input type="text" class="form-control" placeholder="Search by first name..."
+                   @bind="firstNameFilter" @bind:event="oninput" @onkeyup="OnFilterChanged" />
+        </div>
+        <div class="col-md-2">
+            <Button Color="ButtonColor.Secondary" @onclick="ClearFilters">Clear</Button>
+        </div>
+    </div>
+</div>
+
+@if (members == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th style="cursor:pointer" @onclick='() => SortBy("LastName")'>
+                        Last Name @SortIndicator("LastName")
+                    </th>
+                    <th style="cursor:pointer" @onclick='() => SortBy("FirstName")'>
+                        First Name @SortIndicator("FirstName")
+                    </th>
+                    <th>Cell Phone</th>
+                    <th>Home Phone</th>
+                    <th style="cursor:pointer" @onclick='() => SortBy("LastUpdate")'>
+                        Last Update @SortIndicator("LastUpdate")
+                    </th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var member in pagedMembers)
+                {
+                    <tr @onclick="() => ToggleDetail(member.Id)" style="cursor:pointer"
+                        class="@(selectedMemberId == member.Id ? "table-active" : "")">
+                        <td>@member.LastName</td>
+                        <td>@member.FirstName</td>
+                        <td>@FormatHelpers.FormatPhone(member.CellPhone)</td>
+                        <td>@FormatHelpers.FormatPhone(member.HomePhone)</td>
+                        <td>@member.LastUpdate.ToShortDateString()</td>
+                        <td>
+                            @if (canEditMember(member.Id))
+                            {
+                                <a href="/members/edit/@member.Id" class="btn btn-link btn-sm"
+                                   @onclick:stopPropagation="true">
+                                    Edit
+                                </a>
+                            }
+                        </td>
+                    </tr>
+                    @if (selectedMemberId == member.Id && selectedDetail != null)
+                    {
+                        <tr>
+                            <td colspan="6">
+                                <MemberDetailPanel Detail="selectedDetail" />
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (totalPages > 1)
+    {
+        <nav>
+            <ul class="pagination justify-content-center">
+                <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                    <button class="page-link" @onclick="() => GoToPage(currentPage - 1)">Previous</button>
+                </li>
+                @for (int i = 1; i <= totalPages; i++)
+                {
+                    var pageNum = i;
+                    <li class="page-item @(currentPage == pageNum ? "active" : "")">
+                        <button class="page-link" @onclick="() => GoToPage(pageNum)">@pageNum</button>
+                    </li>
+                }
+                <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                    <button class="page-link" @onclick="() => GoToPage(currentPage + 1)">Next</button>
+                </li>
+            </ul>
+        </nav>
+    }
+}
+
+@code {
+    private List<MemberListDto>? members;
+    private List<MemberListDto> filteredMembers = new();
+    private IEnumerable<MemberListDto> pagedMembers = Enumerable.Empty<MemberListDto>();
+
+    private string lastNameFilter = string.Empty;
+    private string firstNameFilter = string.Empty;
+    private string sortColumn = "LastName";
+    private bool sortAscending = true;
+    private int currentPage = 1;
+    private const int PageSize = 50;
+    private int totalPages;
+
+    private int? selectedMemberId;
+    private MemberDetailDto? selectedDetail;
+
+    private bool isAdmin;
+    private int? currentUserMemberId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        isAdmin = user.IsInRole("Admin") || user.IsInRole("SuperAdmin");
+
+        var appUser = await UserManager.GetUserAsync(user);
+        currentUserMemberId = appUser?.MemberId;
+
+        members = await MemberService.GetDirectoryListAsync();
+        ApplyFiltersAndSort();
+    }
+
+    private bool canEditMember(int memberId) =>
+        isAdmin || (currentUserMemberId.HasValue && currentUserMemberId.Value == memberId);
+
+    private void OnFilterChanged()
+    {
+        currentPage = 1;
+        selectedMemberId = null;
+        selectedDetail = null;
+        ApplyFiltersAndSort();
+    }
+
+    private void ClearFilters()
+    {
+        lastNameFilter = string.Empty;
+        firstNameFilter = string.Empty;
+        currentPage = 1;
+        selectedMemberId = null;
+        selectedDetail = null;
+        ApplyFiltersAndSort();
+    }
+
+    private void SortBy(string column)
+    {
+        if (sortColumn == column)
+            sortAscending = !sortAscending;
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+        ApplyFiltersAndSort();
+    }
+
+    private string SortIndicator(string column)
+    {
+        if (sortColumn != column) return "";
+        return sortAscending ? "\u25B2" : "\u25BC";
+    }
+
+    private void ApplyFiltersAndSort()
+    {
+        if (members == null) return;
+
+        var query = members.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(lastNameFilter))
+            query = query.Where(m => m.LastName.Contains(lastNameFilter, StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrWhiteSpace(firstNameFilter))
+            query = query.Where(m => m.FirstName.Contains(firstNameFilter, StringComparison.OrdinalIgnoreCase));
+
+        query = sortColumn switch
+        {
+            "FirstName" => sortAscending ? query.OrderBy(m => m.FirstName) : query.OrderByDescending(m => m.FirstName),
+            "LastUpdate" => sortAscending ? query.OrderBy(m => m.LastUpdate) : query.OrderByDescending(m => m.LastUpdate),
+            _ => sortAscending ? query.OrderBy(m => m.LastName).ThenBy(m => m.FirstName) : query.OrderByDescending(m => m.LastName).ThenByDescending(m => m.FirstName)
+        };
+
+        filteredMembers = query.ToList();
+        totalPages = Math.Max(1, (int)Math.Ceiling((double)filteredMembers.Count / PageSize));
+        if (currentPage > totalPages) currentPage = totalPages;
+        pagedMembers = filteredMembers.Skip((currentPage - 1) * PageSize).Take(PageSize);
+    }
+
+    private void GoToPage(int page)
+    {
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        selectedMemberId = null;
+        selectedDetail = null;
+        pagedMembers = filteredMembers.Skip((currentPage - 1) * PageSize).Take(PageSize);
+    }
+
+    private async Task ToggleDetail(int memberId)
+    {
+        if (selectedMemberId == memberId)
+        {
+            selectedMemberId = null;
+            selectedDetail = null;
+        }
+        else
+        {
+            selectedMemberId = memberId;
+            selectedDetail = await MemberService.GetMemberDetailAsync(memberId);
+            // Resolve note user names
+            if (selectedDetail != null)
+            {
+                await ResolveNoteUserNames(selectedDetail);
+            }
+        }
+    }
+
+    private async Task ResolveNoteUserNames(MemberDetailDto detail)
+    {
+        foreach (var note in detail.Notes)
+        {
+            if (!string.IsNullOrEmpty(note.UserName)) continue;
+            // note.UserName is blank at this point - we get it from the member note's UserId
+            // This requires access to the MemberNote entity's UserId, which is not in the DTO yet
+            // For now we'll handle this at the service level
+        }
+    }
+
+    private void NewMember()
+    {
+        Navigation.NavigateTo("/members/new");
+    }
+
+    private void EditMember(int id)
+    {
+        Navigation.NavigateTo($"/members/edit/{id}");
+    }
+}

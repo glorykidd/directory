@@ -1,0 +1,79 @@
+@if (Detail != null)
+{
+    <div class="card mt-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <h5 class="mb-0">@Detail.DisplayName</h5>
+                <a href="/members/print/@Detail.Id" class="btn btn-outline-secondary btn-sm" target="_blank">
+                    <i class="bi bi-printer"></i> Print
+                </a>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    @if (!string.IsNullOrEmpty(Detail.MaritalStatus))
+                    {
+                        <p class="mb-1"><strong>Marital Status:</strong> @Detail.MaritalStatus</p>
+                    }
+                    @if (!string.IsNullOrEmpty(Detail.FormattedAddress))
+                    {
+                        <p class="mb-1"><strong>Address:</strong></p>
+                        <p class="mb-1 ms-3" style="white-space: pre-line;">@Detail.FormattedAddress</p>
+                    }
+                    @if (!string.IsNullOrEmpty(Detail.CellPhone))
+                    {
+                        <p class="mb-1"><strong>Cell:</strong> @Detail.CellPhone</p>
+                    }
+                    @if (!string.IsNullOrEmpty(Detail.HomePhone))
+                    {
+                        <p class="mb-1"><strong>Home:</strong> @Detail.HomePhone</p>
+                    }
+                    @if (!string.IsNullOrEmpty(Detail.Email1))
+                    {
+                        <p class="mb-1"><strong>Email:</strong> @Detail.Email1</p>
+                    }
+                    @if (!string.IsNullOrEmpty(Detail.Email2))
+                    {
+                        <p class="mb-1"><strong>Email 2:</strong> @Detail.Email2</p>
+                    }
+                    @if (!string.IsNullOrEmpty(Detail.DateOfBirth))
+                    {
+                        <p class="mb-1"><strong>Date of Birth:</strong> @Detail.DateOfBirth</p>
+                    }
+                    @if (!string.IsNullOrEmpty(Detail.MarriageDate))
+                    {
+                        <p class="mb-1"><strong>Marriage Date:</strong> @Detail.MarriageDate</p>
+                    }
+                </div>
+                <div class="col-md-6">
+                    @if (Detail.RelatedMembers.Count > 0)
+                    {
+                        <h6>Related Members</h6>
+                        <ul class="list-unstyled">
+                            @foreach (var rel in Detail.RelatedMembers)
+                            {
+                                <li class="mb-1">
+                                    <strong>@rel.RelationshipTypeName:</strong> @rel.DisplayName
+                                </li>
+                            }
+                        </ul>
+                    }
+                    @if (Detail.Notes.Count > 0)
+                    {
+                        <h6>Notes</h6>
+                        @foreach (var note in Detail.Notes)
+                        {
+                            <div class="border-start border-3 ps-2 mb-2">
+                                <small class="text-muted">@note.CreatedDate.ToShortDateString() - @note.UserName</small>
+                                <p class="mb-0">@note.NoteText</p>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public MemberDetailDto? Detail { get; set; }
+}

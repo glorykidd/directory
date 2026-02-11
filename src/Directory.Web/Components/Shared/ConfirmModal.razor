@@ -1,0 +1,34 @@
+<Modal @ref="modal" Title="@Title">
+    <BodyTemplate>
+        <p>@Message</p>
+    </BodyTemplate>
+    <FooterTemplate>
+        <Button Color="ButtonColor.Secondary" @onclick="Cancel">Cancel</Button>
+        <Button Color="ButtonColor.Danger" @onclick="Confirm">@ConfirmText</Button>
+    </FooterTemplate>
+</Modal>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Confirm";
+    [Parameter] public string Message { get; set; } = "Are you sure?";
+    [Parameter] public string ConfirmText { get; set; } = "Yes";
+    [Parameter] public EventCallback OnConfirmed { get; set; }
+
+    private Modal modal = default!;
+
+    public async Task ShowAsync()
+    {
+        await modal.ShowAsync();
+    }
+
+    private async Task Cancel()
+    {
+        await modal.HideAsync();
+    }
+
+    private async Task Confirm()
+    {
+        await modal.HideAsync();
+        await OnConfirmed.InvokeAsync();
+    }
+}

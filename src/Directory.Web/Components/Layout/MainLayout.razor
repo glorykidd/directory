@@ -1,0 +1,13 @@
+@inherits LayoutComponentBase
+
+<div class="d-flex flex-column min-vh-100">
+    <NavHeader />
+    <main class="flex-grow-1">
+        <div class="container-fluid py-3">
+            @Body
+        </div>
+    </main>
+    <footer class="bg-light text-center text-muted py-3 border-top">
+        <small>&copy; @DateTime.Now.Year Cedar Grove Baptist Church. All rights reserved.</small>
+    </footer>
+</div>
